@@ -2,11 +2,20 @@ Planning notes
 Focusing on:
 * Accuracy 
 * Finding the correct position
-Using cameras and ROS
-if that won't work, try trajectory and path planning. 
+
+Problems and possible solutions:
+* Finding the tool 
+  - Use camera, have the tool marked using color-sticker/qr-code (Possibly using the program Pixy)
+  - trajectory and path planning
+* Attaching the robot to the tool
+  - Magnet on the tool + magnet on the robot to get the position correct
+	- Use a graper to grab the tool
 
 if extra time is give:
-*
+* Use an LED to show the robot is active (Why? In order to make it safer to use in collaboration with humans)
+
+Check:
+* How fast the robot is allowed to move (Why? Robot restrictions, Safefty)
 
 Not focusing on:
 * drilling
