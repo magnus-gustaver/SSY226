@@ -1,0 +1,13 @@
+Planning notes
+Focusing on:
+* Accuracy 
+* Finding the correct position
+Using cameras and ROS
+if that won't work, try trajectory and path planning. 
+
+if extra time is give:
+*
+
+Not focusing on:
+* drilling
+* finding the motor
