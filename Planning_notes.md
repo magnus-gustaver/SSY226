@@ -10,7 +10,7 @@ Problems and possible solutions:
 	Solution to this can be to place the camera further away on the robot arm.
   - Using the information from the camera, use trajectory and path planning
 * Attaching the robot to the tool
-  ~~- Magnet on the tool + magnet on the robot to get the position correct~~
+  -~~Magnet on the tool + magnet on the robot to get the position correct~~
   	*This is not a robust solution to use in the industry due to magnets not being reliable over time.*
   - Use a graper to grab the tool
 
