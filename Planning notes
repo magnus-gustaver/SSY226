@@ -6,12 +6,15 @@ Focusing on:
 Problems and possible solutions:
 * Finding the tool 
   - Use camera, have the tool marked using color-sticker/qr-code (Possibly using the program Pixy)
-  - trajectory and path planning
+  	The camera used can not use 3D-data when the object is closer than 30 cm to the camera.
+	Solution to this can be to place the camera further away on the robot arm.
+  - Using the information from the camera, use trajectory and path planning
 * Attaching the robot to the tool
-  - Magnet on the tool + magnet on the robot to get the position correct
-	- Use a graper to grab the tool
+  ~~- Magnet on the tool + magnet on the robot to get the position correct~~
+  	*This is not a robust solution to use in the industry due to magnets not being reliable over time.*
+  - Use a graper to grab the tool
 
-if extra time is give:
+if extra time is given:
 * Use an LED to show the robot is active (Why? In order to make it safer to use in collaboration with humans)
 
 Check:
