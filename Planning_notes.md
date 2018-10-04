@@ -6,11 +6,11 @@ Focusing on:
 Problems and possible solutions:
 * Finding the tool 
   - Use camera, have the tool marked using color-sticker/qr-code (Possibly using the program Pixy)
-  	The camera used can not use 3D-data when the object is closer than 30 cm to the camera.
+  	The camera used can not use 3D-data when the object is closer than 30 cm to the camera. The data from the camera includes range information.
 	Solution to this can be to place the camera further away on the robot arm.
   - Using the information from the camera, use trajectory and path planning
 * Attaching the robot to the tool
-  -~~Magnet on the tool + magnet on the robot to get the position correct~~
+  - ~~Magnet on the tool + magnet on the robot to get the position correct~~
   	*This is not a robust solution to use in the industry due to magnets not being reliable over time.*
   - Use a graper to grab the tool
 
