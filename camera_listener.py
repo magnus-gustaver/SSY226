@@ -4,6 +4,7 @@ import pyrealsense2 as rs
 import numpy as np
 import cv2
 import cv2.aruco as aruco
+import math
 
 # Configure depth and color streams
 pipeline = rs.pipeline()
@@ -14,12 +15,23 @@ config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 # Start streaming
 pipeline.start(config)
 
-center1 = [0, 0]
-center2 = [0, 0]
-depth1 = 0
-depth2 = 0
-tag1missing = 0
-tag2missing = 0
+center = [0, 0, 0]
+tagMissing = 0
+iterations=0
+corner1=[0,0,0]
+corner2=[0,0,0]
+corner3=[0,0,0]
+corner4=[0,0,0]
+den=[0,0,0,0]
+
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
+
+def angle_between(v1, v2):
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
 try:
     while True:
@@ -41,33 +53,94 @@ try:
         # Detect tags with ids and corresponding corners
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
 
-        tag1found=False
-        tag2found=False
+        tagFound = False
 
         for i in range(0, len(corners)):
             if ids[i] == 1:
-                tag1found=True
-            elif ids[i] == 2:
-                tag2found=True
+                tagFound = True
 
-        if not tag1found:
-            tag1missing+=1
-        if not tag2found:
-            tag2missing+=1
+        if not tagFound:
+            tagMissing += 1
 
-        # If tag found, check its location to find the distance to it
-        for i in range(0, len(corners)):
-            if ids[i] == 1:
-                tag1missing=0
-                center1 = np.mean(corners[i][0], axis=0)
-                depth1 = depth_frame.get_distance(center1[0], center1[1])
-            elif ids[i] == 2:
-                tag2missing=0
-                center2 = np.mean(corners[i][0], axis=0)
-                depth2 = depth_frame.get_distance(center2[0], center2[1])
+        if tagFound:
+            # If tag found, check its location to find the distance to it
+            for i in range(0, len(corners)):
+                if ids[i] == 1:
+                    iterations = iterations + 1
+                    corner1temp = [corners[i][0][0][0], corners[i][0][0][1], 0]
+                    corner2temp = [corners[i][0][1][0], corners[i][0][1][1], 0]
+                    corner3temp = [corners[i][0][2][0], corners[i][0][2][1], 0]
+                    corner4temp = [corners[i][0][3][0], corners[i][0][3][1], 0]
+                    corner1temp[2] = depth_frame.get_distance(corner1temp[0], corner1temp[1])
+                    corner2temp[2] = depth_frame.get_distance(corner2temp[0], corner2temp[1])
+                    corner3temp[2] = depth_frame.get_distance(corner3temp[0], corner3temp[1])
+                    corner4temp[2] = depth_frame.get_distance(corner4temp[0], corner4temp[1])
 
-        print("Tag1: x=", center1[0], " y=", center1[1], " depth=", depth1, " missing=", tag1missing)
-        print("Tag2: x=", center2[0], " y=", center2[1], " depth=", depth2, " missing=", tag2missing)
+                    if corner1temp[2] > 0.1:
+                        corner1=np.add(corner1, corner1temp)
+                        den[0]=den[0]+1
+                    if corner2temp[2] > 0.1:
+                        corner2 = np.add(corner2, corner2temp)
+                        den[1]=den[1]+1
+                    if corner3temp[2] > 0.1:
+                        corner3 = np.add(corner3, corner3temp)
+                        den[2] = den[2] + 1
+                    if corner4temp[2] > 0.1:
+                        corner4 = np.add(corner4, corner4temp)
+                        den[3] = den[3] + 1
+
+                    RotateAroundZAxis = -np.mean(np.array(
+                        [math.atan2((corner2temp[1] - corner1temp[1]), (corner2temp[0] - corner1temp[0])), math.atan2((corner2temp[0] - corner3temp[0]), (corner3temp[1] - corner2temp[1])),
+                         math.atan2((corner3temp[1] - corner4temp[1]), (corner3temp[0] - corner4temp[0])), math.atan2((corner1temp[0] - corner4temp[0]), (corner4temp[1] - corner1temp[1]))]))
+                    #RotateAroundZAxis = math.atan2((corner2temp[1] - corner1temp[1]), (corner2temp[0] - corner1temp[0]))
+
+
+
+                    if iterations == 30:
+                        tagMissing = 0
+                        if den[0] != 0:
+                            corner1 = [corner1[0] / den[0], corner1[1] / den[0], corner1[2] / den[0]]
+                        if den[1] != 0:
+                            corner2 = [corner2[0]/den[1],corner2[1]/den[1],corner2[2]/den[1]]
+                        if den[2] != 0:
+                            corner3 = [corner3[0]/den[2],corner3[1]/den[2],corner3[2]/den[2]]
+                        if den[3] != 0:
+                            corner4 = [corner4[0] / den[3], corner4[1] / den[3], corner4[2] / den[3]]
+
+                        u = [corner1[0]-corner4[0], corner1[1]-corner4[1], corner1[2]-corner4[2]]
+                        v = [corner3[0]-corner4[0], corner3[1]-corner4[1], corner3[2]-corner4[2]]
+                        temp1=[u[0],u[1]]
+                        temp2=[v[0],v[1]]
+                        scale = 0.11*2/(np.linalg.norm(temp1)+np.linalg.norm(temp2))
+                        v = [v[0]*scale, v[1]*scale, v[2]]
+                        u = [u[0] * scale, u[1] * scale, u[2]]
+
+                        n = np.cross(u, v)
+                        nnorm=np.linalg.norm(n)
+                        n=[n[0]/nnorm,n[1]/nnorm,n[2]/nnorm]
+                        #print(n)
+                        #print("---------------")
+                        xy = np.mean(corners[i][0], axis=0)
+                        center = [xy[0], xy[1], depth_frame.get_distance(center[0], center[1])]
+                        v = [(center[0] - 640/2) * scale, (center[1] - 480/2) * scale, center[2]]
+                        #print(v)
+                        #print("--------")
+
+                        print(math.degrees(angle_between([v[1],v[2]],[n[1],n[2]])))
+
+
+                        corner1 = [0, 0, 0]
+                        corner2 = [0, 0, 0]
+                        corner3 = [0, 0, 0]
+                        corner4 = [0, 0, 0]
+                        iterations = 0
+                        den=[0,0,0,0]
+
+
+        else:
+            print("error")
+
+
 
 
 finally:
