@@ -103,8 +103,8 @@ try:
                         n = unit_vector(n)
 
                         # Get approximate center of marker and create vector there
-                        xy = np.mean(corners[i][0], axis=0)
-                        center = [xy[0], xy[1], depth_frame.get_distance(center[0], center[1])]
+                        center = np.mean(averageCorner, axis = 0)
+                        center[2] = depth_frame.get_distance(center[0], center[1])
                         cameraToCenter = np.array([center[0] - imageWidth/2, center[1] - imageHeight/2, center[2]])
                         vec = change_scale(cameraToCenter, scale)
                         
