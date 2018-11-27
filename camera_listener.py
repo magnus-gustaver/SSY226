@@ -15,23 +15,36 @@ config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 # Start streaming
 pipeline.start(config)
 
+# Set global variables
 center = [0, 0, 0]
-tagMissing = 0
 iterations=0
-corner1=[0,0,0]
-corner2=[0,0,0]
-corner3=[0,0,0]
-corner4=[0,0,0]
+averageCorner = np.zeros((4, 3))
 den=[0,0,0,0]
+markerWidth = 0.11 # real width in meters
+imageWidth = 640 # Width of input image in pixels
+imageHeight = 480 # Height of input image in pixels
 
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
     return vector / np.linalg.norm(vector)
 
 def angle_between(v1, v2):
+    """ Returns the angle between to vectors in radians """
     v1_u = unit_vector(v1)
     v2_u = unit_vector(v2)
     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
+def transform_corner_data(corners, i):
+    """ Returns coordinates of the corners of marker i """
+    corner1temp = [corners[i][0][0][0], corners[i][0][0][1], depth_frame.get_distance(corners[i][0][0][0], corners[i][0][0][1])]
+    corner2temp = [corners[i][0][1][0], corners[i][0][1][1], depth_frame.get_distance(corners[i][0][1][0], corners[i][0][1][1])]
+    corner3temp = [corners[i][0][2][0], corners[i][0][2][1], depth_frame.get_distance(corners[i][0][2][0], corners[i][0][2][1])]
+    corner4temp = [corners[i][0][3][0], corners[i][0][3][1], depth_frame.get_distance(corners[i][0][3][0], corners[i][0][3][1])]
+    return np.array([[corner1temp],[corner2temp],[corner3temp],[corner4temp]])
+
+def change_scale(v, scale):
+    """ Input vector with parameters [pixel, pixel, meter] and return vector with meter parameters """
+    return [v[0] * scale, v[1] * scale, v[2]]
 
 try:
     while True:
@@ -59,90 +72,57 @@ try:
             if ids[i] == 1:
                 tagFound = True
 
-        if not tagFound:
-            tagMissing += 1
-
         if tagFound:
             # If tag found, check its location to find the distance to it
             for i in range(0, len(corners)):
                 if ids[i] == 1:
                     iterations = iterations + 1
-                    corner1temp = [corners[i][0][0][0], corners[i][0][0][1], 0]
-                    corner2temp = [corners[i][0][1][0], corners[i][0][1][1], 0]
-                    corner3temp = [corners[i][0][2][0], corners[i][0][2][1], 0]
-                    corner4temp = [corners[i][0][3][0], corners[i][0][3][1], 0]
-                    corner1temp[2] = depth_frame.get_distance(corner1temp[0], corner1temp[1])
-                    corner2temp[2] = depth_frame.get_distance(corner2temp[0], corner2temp[1])
-                    corner3temp[2] = depth_frame.get_distance(corner3temp[0], corner3temp[1])
-                    corner4temp[2] = depth_frame.get_distance(corner4temp[0], corner4temp[1])
 
-                    if corner1temp[2] > 0.1:
-                        corner1=np.add(corner1, corner1temp)
-                        den[0]=den[0]+1
-                    if corner2temp[2] > 0.1:
-                        corner2 = np.add(corner2, corner2temp)
-                        den[1]=den[1]+1
-                    if corner3temp[2] > 0.1:
-                        corner3 = np.add(corner3, corner3temp)
-                        den[2] = den[2] + 1
-                    if corner4temp[2] > 0.1:
-                        corner4 = np.add(corner4, corner4temp)
-                        den[3] = den[3] + 1
+                    corner = transform_corner_data(corners, i)
 
-                    RotateAroundZAxis = -np.mean(np.array(
-                        [math.atan2((corner2temp[1] - corner1temp[1]), (corner2temp[0] - corner1temp[0])), math.atan2((corner2temp[0] - corner3temp[0]), (corner3temp[1] - corner2temp[1])),
-                         math.atan2((corner3temp[1] - corner4temp[1]), (corner3temp[0] - corner4temp[0])), math.atan2((corner1temp[0] - corner4temp[0]), (corner4temp[1] - corner1temp[1]))]))
-                    #RotateAroundZAxis = math.atan2((corner2temp[1] - corner1temp[1]), (corner2temp[0] - corner1temp[0]))
-
-
-
+                    for j in range(0, 4):
+                        if corner[j,2] > 0.1:
+                            averageCorner[j,:] = np.add(averageCorner[j,:], corner[j,:])
+                            den[j] = den[j]+1
+                 
                     if iterations == 30:
-                        tagMissing = 0
-                        if den[0] != 0:
-                            corner1 = [corner1[0] / den[0], corner1[1] / den[0], corner1[2] / den[0]]
-                        if den[1] != 0:
-                            corner2 = [corner2[0]/den[1],corner2[1]/den[1],corner2[2]/den[1]]
-                        if den[2] != 0:
-                            corner3 = [corner3[0]/den[2],corner3[1]/den[2],corner3[2]/den[2]]
-                        if den[3] != 0:
-                            corner4 = [corner4[0] / den[3], corner4[1] / den[3], corner4[2] / den[3]]
+                        for j in range(0, 4):
+                            if den[j] != 0:
+                                averageCorner[j,:] = averageCorner[j,:] / den[j] #averageCorner[j,:] = [averageCorner[j,0] / den[j], averageCorner[j,1] / den[j], averageCorner[j,2] / den[j]]
 
-                        u = [corner1[0]-corner4[0], corner1[1]-corner4[1], corner1[2]-corner4[2]]
-                        v = [corner3[0]-corner4[0], corner3[1]-corner4[1], corner3[2]-corner4[2]]
-                        temp1=[u[0],u[1]]
-                        temp2=[v[0],v[1]]
-                        scale = 0.11*2/(np.linalg.norm(temp1)+np.linalg.norm(temp2))
-                        v = [v[0]*scale, v[1]*scale, v[2]]
-                        u = [u[0] * scale, u[1] * scale, u[2]]
+                        u = np.subtract(averageCorner[0,:], averageCorner[3,:])
+                        v = np.subtract(averageCorner[2,:], averageCorner[3,:])
 
+                        # Scale in meter/pixel
+                        scale = markerWidth*2/(np.linalg.norm([u[0],u[1]])+np.linalg.norm([v[0],v[1]]))
+                        u = change_scale(u, scale)
+                        v = change_scale(v, scale)
+
+                        # Normal vector of marker
                         n = np.cross(u, v)
-                        nnorm=np.linalg.norm(n)
-                        n=[n[0]/nnorm,n[1]/nnorm,n[2]/nnorm]
-                        #print(n)
-                        #print("---------------")
+                        n = unit_vector(n)
+
+                        # Get approximate center of marker and create vector there
                         xy = np.mean(corners[i][0], axis=0)
                         center = [xy[0], xy[1], depth_frame.get_distance(center[0], center[1])]
-                        v = [(center[0] - 640/2) * scale, (center[1] - 480/2) * scale, center[2]]
-                        #print(v)
-                        #print("--------")
+                        cameraToCenter = np.array([center[0] - imageWidth/2, center[1] - imageHeight/2, center[2]])
+                        vec = change_scale(cameraToCenter, scale)
+                        
+                        RotateAroundXAxis = math.degrees(angle_between([vec[1],vec[2]],[n[1],n[2]]))
 
-                        print(math.degrees(angle_between([v[1],v[2]],[n[1],n[2]])))
+                        RotateAroundYAxis = math.degrees(angle_between([vec[0],vec[2]],[n[0],n[2]]))
 
+                        RotateAroundZAxis = -np.mean(np.array(
+                        [math.atan2((corner[1,1] - corner[0,1]), (corner[1,0] - corner[0,0])), math.atan2((corner[1,0] - corner[2,0]), (corner[2,1] - corner[1,1])),
+                         math.atan2((corner[2,1] - corner[3,1]), (corner[2,0] - corner[3,0])), math.atan2((corner[0,0] - corner[3,0]), (corner[3,1] - corner[0,1]))]))
 
-                        corner1 = [0, 0, 0]
-                        corner2 = [0, 0, 0]
-                        corner3 = [0, 0, 0]
-                        corner4 = [0, 0, 0]
+                        averageCorner = np.zeros((4, 3))
                         iterations = 0
                         den=[0,0,0,0]
-
 
         else:
             print("error")
 
-
-
-
 finally:
     # Stop streaming
-    pipeline.stop()
+pipeline.stop()
